@@ -1,58 +1,40 @@
 # Flag removal readiness
 
-Compose this from Harness MCP v2 + local grep. Do not call tools that do not exist.
+Use Harness MCP plus local code search. Default stale threshold: **30 days** (ask before changing).
 
-Default impression stale threshold: **30 days**. Ask before using a different window.
+Scope with `org_id` + `project_id`.
 
-## Public v4 fields (native MCP)
+## What to check
 
-Use `org_id` + `project_id`. Prefer these over `workspace_id`.
+For each **critical environment**:
 
-| Field | Resource | Use |
-|-------|----------|-----|
-| `createdAt` | `fme_feature_flag`, `fme_feature_flag_definition` | Age |
-| `status` `ACTIVE` / `ARCHIVED` | `fme_feature_flag` | Skip archived |
-| `rolloutStatus` `{id, name}` | `fme_feature_flag` | Reference on the flag — names like Permanent → blocked or caution. Full catalog (with `description`) via `fme_rollout_status` list |
-| `isKilled`, `defaultTreatment`, `baselineTreatment`, `defaultRule`, `trafficAllocation`, `rules`, treatment `keys` / `segments` / `largeSegments` / `ruleBasedSegments` | `fme_feature_flag_definition` | Forward treatment and targeting (`trafficAllocation` is experiment participation 0–100, not treatment split — use `defaultRule` for %) |
-| Matcher type `IN_SPLIT` | definition `rules` | Dependent flags → blocked |
-| `impressions.lastImpressionAt` | definition | Primary staleness (last SDK evaluation) |
-| List definitions by `feature_flag_name` only | `harness_list` `fme_feature_flag_definition` | All environments in one call (`org_id`+`project_id` only; paginate `offset`/`limit`, max 100) |
-| `harness_get` one definition | `fme_feature_flag_definition` | Requires `environment_id` — list is env-agnostic; get is per-env |
+- Flag is not archived
+- Same winning treatment (or same kill/default behavior) across all critical envs
+- No active targeting rules, segments, or dependent-flag rules still in play
+- Recent usage: prefer flags with no recent evaluations; treat missing usage data as **caution**, not proof of zero traffic
+- Rollout status: permanent or “do not remove” → **blocked** or **caution**
 
-## Not on public v4 (do not require)
-
-| Field | Reality |
-|-------|---------|
-| Flag metadata `lastUpdateTime` / `updatedAt` | Exists on admin `TestMetadataDTO` (`lastEntityUpdateTime`). **Not** mapped on v4 `FeatureFlag`. |
-| Definition `lastUpdateTime` | On v2 `SplitExternal`. **Dropped** on v4 definition DTO. |
-| `lastTrafficReceivedAt` | v2 only. v4 uses `lastImpressionAt`. |
-
-If the user asks to sort by “last edited”, say that field is not on native MCP yet. Fall back to `createdAt` + `lastImpressionAt`.
+Also grep the application repo for the flag key before **labeling** a flag **safe**.
 
 ## Verdicts
 
 | Verdict | When |
 |---------|------|
-| **blocked** | Critical envs disagree on `isKilled` or winning treatment; prod-like env still has `rules` or any non-empty treatment targeting list (`keys`, `segments`, `largeSegments`, `ruleBasedSegments`); `IN_SPLIT` dependents; rollout status is permanent (or clearly “do not remove”) |
-| **caution** | `lastImpressionAt` is null or newer than the threshold; `createdAt` is recent (default: under 14 days); only some envs are 100% one treatment; killed in prod but live elsewhere; this repo has no refs (other repos unknown) |
-| **safe** | All critical envs share the same winning treatment (or all killed with the same `defaultTreatment`); empty `rules` and all four treatment targeting lists empty in those envs; `lastImpressionAt` older than threshold; local code refs found in this repo |
+| **blocked** | Critical envs disagree; prod-like env still targeted; dependent flags; clearly permanent rollout |
+| **caution** | Missing or recent usage data; young flag; partial rollout; no code refs in this repo (others unknown) |
+| **safe** | All critical envs agree on one treatment with no targeting left; usage looks stale; code refs found here |
 
-Null `lastImpressionAt` means never evaluated **or** impressions lookup failed on safe reads. That is **caution**, not **safe**. The `impressions` object is always present; only `lastImpressionAt` inside it may be null. A failed impressions lookup on **get/list** may return an API error rather than null — treat errors as **caution**, not proof of zero traffic.
+## Forward treatment
 
-Verdicts assess FME and local-repo readiness only. Present `safe` / `caution` / `blocked` in audit mode before user confirmation. Do not edit code or archive until the user explicitly confirms.
+FME definitions are the source of truth — never the SDK default in code.
 
-## Forward treatment (FME is source of truth)
+1. If killed everywhere: use the shared default treatment.
+2. Else if every critical env is 100% on one treatment with no rules left: use that treatment.
+3. Else: **not safe** — stop.
 
-1. If `isKilled` is true in every critical env: use `defaultTreatment` (must match across those envs).
-2. Else if every critical env has empty `rules`, all treatment targeting lists empty (`keys`, `segments`, `largeSegments`, `ruleBasedSegments`), and `defaultRule` is 100% one treatment: use that treatment.
-3. Else: **NOT SAFE**.
+## Audit ranking
 
-Never use the SDK default in application code as the forward value.
-
-## Audit ranking (highest priority first)
-
-1. `blocked` last
-2. Archived already — skip
-3. `caution` with old `lastImpressionAt` and no local code refs (archive-only candidate — other repos may still evaluate)
-4. `safe` with local code refs (remove-from-code candidate)
-5. `caution` — present with reasons, do not auto-remove
+1. Skip archived flags
+2. Prefer **safe** with code refs (remove-from-code candidates)
+3. **Caution** with reasons — do not auto-remove
+4. **Blocked** last

@@ -1,34 +1,31 @@
 # Pull request template (flag cleanup)
 
-Copy into the application-repo PR. Fill every section.
+Copy into the application-repo PR.
 
 ```markdown
 ## Summary
 
-Remove feature flag `<flag_key>` from this repository and hardcode treatment `<forward_treatment>`.
+Remove feature flag `<flag_key>` and hardcode treatment `<forward_treatment>`.
 
 ## Why this is safe
 
 - FME org/project: `<org>` / `<project>`
-- Critical environments checked: `<env names/ids>`
+- Critical environments checked: `<env names>`
 - Readiness verdict: safe | caution | blocked
-- Forward treatment source: `isKilled` / `defaultTreatment` / `defaultRule` (not SDK default)
-- `impressions.lastImpressionAt`: `<timestamp or null>` (threshold: 30d unless noted)
-- Rollout status: `<name or none>`
+- Forward treatment confirmed from FME (not SDK default in code)
 
 ## Code changes
 
-- Kept: `<files/behavior matching forward treatment>`
+- Kept: `<behavior matching forward treatment>`
 - Removed: `<dead branches, tests, constants>`
 
 ## FME follow-up
 
-- [ ] Archive via `harness_execute` `fme_feature_flag` `archive` after merge/deploy
-- [ ] Do not delete unless explicitly requested after archive
+- [ ] Archive flag after merge/deploy
 - [ ] Other repos may still evaluate this flag: `<unknown | listed>`
 
 ## Test plan
 
 - [ ] Flag key grep is clean in this repo
-- [ ] Existing unit/integration tests updated and passing
+- [ ] Tests updated and passing
 ```

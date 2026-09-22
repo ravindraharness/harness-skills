@@ -1,87 +1,30 @@
-# FME / Split SDK search patterns
+# Code search patterns
 
-Search the **application** repo for the flag **key string** and these evaluation APIs. Wrapper methods and constants often hide the SDK — search the key even when the SDK call is abstracted.
+Always search the flag **key string** first. Wrappers and enums often hide the SDK call.
 
-Harness platform code may use a `FeatureName` / `FMEFeatureName` enum whose string value is the flag key. Search both the enum constant and the string.
+Search the **application** repo (not this skills repo).
 
-## Java / Kotlin
+## Find the SDK family
 
-```java
-splitClient.getTreatment(key, "flag-key");
-splitClient.getTreatment(key, "flag-key", attributes);
-splitClient.getTreatments(key, Arrays.asList("flag-key"));
-splitClient.getTreatmentWithConfig(key, "flag-key");
-splitClient.getTreatmentsWithConfig(key, names);
-```
+Check dependencies and imports (`package.json`, `go.mod`, `pom.xml`, `build.gradle`):
 
-Also: `SplitClient.getTreatment`, factory `SplitFactoryBuilder`, `FeatureFlagName`, `FMEFeatureName`.
+| Signal | Grep for |
+|--------|----------|
+| FME / Split server | `getTreatment`, `@splitsoftware/splitio` |
+| FME / Split browser | `getTreatment("`, `useSplitTreatments` |
+| OpenFeature | `getBooleanValue`, `getStringValue`, `@openfeature/` |
+| Harness FF SDK | `@harnessio/ff-`, `boolVariation`, `variation(`, `useFeatureFlag` |
+| Custom wrapper | flag key + `isEnabled`, `getFlag`, `FeatureFlagService` |
 
-## JavaScript / TypeScript (Node)
+**Node vs browser Split:** server uses `getTreatment(key, "flag-key")`; browser uses `getTreatment("flag-key")` only.
 
-Server SDK (`@splitsoftware/splitio`). The **key is the first argument** — same shape as Java. Confirmed against [Harness Node.js SDK](https://developer.harness.io/docs/feature-management-experimentation/sdks-and-infrastructure/server-side-sdks/nodejs-sdk/) (`client.getTreatment('key', 'FEATURE_FLAG_NAME')`). Do **not** use the one-arg browser form below for Node.
-
-```javascript
-client.getTreatment(key, "flag-key");
-client.getTreatment(key, "flag-key", attributes);
-client.getTreatments(key, ["flag-key"]);
-client.getTreatmentWithConfig(key, "flag-key");
-client.getTreatmentsWithConfig(key, ["flag-key"]);
-```
-
-Also: `SplitFactory`, `factory.client()`, `require("@splitsoftware/splitio")`, `splitClient.getTreatment`.
-
-## Browser / React (client JavaScript)
-
-Key is bound when the factory/client is created, not on each eval. Confirmed against [Harness JavaScript SDK](https://developer.harness.io/docs/feature-management-experimentation/sdks-and-infrastructure/client-side-sdks/javascript-sdk/) (`client.getTreatment('FEATURE_FLAG_NAME')`). Troubleshooting also documents `getTreatment(split_name, attributes)` for iOS, Android, and JavaScript.
-
-```javascript
-client.getTreatment("flag-key");
-client.getTreatment("flag-key", attributes);
-client.getTreatments(["flag-key"]);
-client.getTreatmentWithConfig("flag-key");
-client.getTreatmentsWithConfig(["flag-key"]);
-useSplitTreatments({ names: ["flag-key"] });
-<SplitTreatments names={["flag-key"]}>
-```
-
-## Go
-
-```go
-client.Treatment(key, "flag-key", attributes)
-client.Treatments(key, []string{"flag-key"}, attributes)
-client.TreatmentWithConfig(key, "flag-key", attributes)
-```
-
-## Python
-
-```python
-client.get_treatment(key, "flag-key")
-client.get_treatments(key, ["flag-key"])
-client.get_treatment_with_config(key, "flag-key")
-```
-
-## .NET
-
-```csharp
-client.GetTreatment(key, "flag-key");
-client.GetTreatments(key, new List<string> { "flag-key" });
-client.GetTreatmentWithConfig(key, "flag-key");
-```
-
-## Ruby
-
-```ruby
-split_client.get_treatment(key, "flag-key")
-split_client.get_treatments(key, ["flag-key"])
-```
+**Classic FF vs FME:** this skill’s readiness and archive use FME. If the repo only uses `@harnessio/ff-*` and FME has no such flag, stop.
 
 ## Also search
 
-- Config, fixtures, and tests that pin the key
-- YAML/JSON feature-flag lists
-- Comments and docs that name the flag
-- Dynamic construction (`"prefix-" + id`, `` `flag-${id}` ``) — if found, stop automated removal
+- Tests, config, fixtures, comments
+- Dynamic keys (`"prefix-" + id`, `` `flag-${id}` ``) — if found, stop automated removal
 
 ## After removal
 
-Re-run the key search. Remaining hits should be unrelated homonyms or other repos.
+Re-run the key search. Remaining hits should be homonyms or other repos.
