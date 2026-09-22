@@ -9,7 +9,7 @@ description: >-
   flag, create flag, feature rollout, archive flag, FME flag.
 metadata:
   author: Harness
-  version: 2.0.0
+  version: 2.0.1
   mcp-server: harness-mcp-v2
 license: Apache-2.0
 compatibility: Requires Harness MCP v2 server (harness-mcp-v2). Feature Flags are served by the FME (Split.io) backend — operations use the `fme_feature_flag` resource type and require a `workspace_id`.
@@ -18,6 +18,8 @@ compatibility: Requires Harness MCP v2 server (harness-mcp-v2). Feature Flags ar
 # Manage Feature Flags
 
 Create, list, kill/restore, and delete Harness FME (Split.io-backed) Feature Flags via MCP.
+
+To audit stale flags or remove a launched flag from application code, use `/cleanup-feature-flags`.
 
 ## Prerequisites
 
